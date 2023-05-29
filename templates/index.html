@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Music Artist Analytics Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        background-color: #181818;
+        color: #ffffff;
+      }
+
+      .container {
+        padding-top: 50px;
+      }
+
+      h1,
+      h2 {
+        font-size: 3rem;
+        margin-bottom: 30px;
+        font-family: "Arial", sans-serif;
+      }
+
+      .kpi-container {
+        display: flex;
+        justify-content: space-around;
+        margin-bottom: 40px;
+      }
+
+      .kpi {
+        font-size: 1.2rem;
+        text-align: center;
+      }
+
+      .kpi-value {
+        font-size: 2rem;
+        font-weight: bold;
+      }
+
+      .chart-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 30px;
+      }
+
+      .chart {
+        position: relative;
+        height: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Music Artist Analytics Dashboard</h1>
+      <div class="kpi-container">
+        <div class="kpi">
+          <span class="kpi-value" id="followers"></span>
+          <p>Followers</p>
+        </div>
+        <div class="kpi">
+          <span class="kpi-value" id="popularity"></span>
+          <p>Popularity</p>
+        </div>
+        <div class="kpi">
+            <span class="kpi-value" id="latestTrackPopularity"></span>
+            <p>Latest Track Popularity</p>
+          </div>
+          <div class="kpi">
+            <span class="kpi-value" id="latestTrackListeners"></span>
+            <p>Latest Track Listeners</p>
+          </div>
+          <div class="kpi">
+            <span class="kpi-value" id="popularityDiff"></span>
+            <p>Popularity Difference</p>
+          </div>
+          <div class="kpi">
+            <span class="kpi-value" id="listenersDiff"></span>
+            <p>Listeners Difference</p>
+        </div>
+        </div>
+      </div>
+
+      <h2>Growth</h2>
+      <div class="chart-container">
+        <div class="chart">
+          <canvas id="followersChart"></canvas>
+        </div>
+        <div class="chart">
+          <canvas id="popularityChart"></canvas>
+        </div>
+        <div class="chart">
+          <canvas id="listenersChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script>
+      async function fetchData() {
+  const response = await axios.get("/fetch_data");
+  const responseData = response.data;
+  const data = responseData.stats;
+
+  // Combine the data for the same date
+  const combinedData = {};
+  data.forEach((entry) => {
+    const date = moment(entry.timestamp).format("YYYY-MM-DD"); // Use the same date format as in your API data
+    if (combinedData[date]) {
+      combinedData[date].count += 1;
+      combinedData[date].followers = (combinedData[date].followers + entry.followers) / combinedData[date].count;
+      combinedData[date].popularity = (combinedData[date].popularity + entry.popularity) / combinedData[date].count;
+      combinedData[date].listeners = (combinedData[date].listeners + entry.listeners) / combinedData[date].count;
+    } else {
+      combinedData[date] = { ...entry, timestamp: date, count: 1 };
+    }
+  });
+
+  // Convert the combinedData object into an array
+  const combinedDataArray = Object.values(combinedData).map((entry) => {
+    delete entry.count;
+    return entry;
+  });
+
+  // Display the latest data
+  const latestData = data[data.length - 1];
+  document.getElementById("followers").innerText = latestData.followers;
+  document.getElementById("popularity").innerText = latestData.popularity;
+  document.getElementById("latestTrackPopularity").innerText = responseData.latest_track_popularity;
+  document.getElementById("latestTrackListeners").innerText = responseData.latest_track_listeners;
+  document.getElementById("popularityDiff").innerText = `${responseData.popularity_diff.toFixed(2)}%`;
+  document.getElementById("listenersDiff").innerText = `${responseData.listeners_diff.toFixed(2)}%`;
+
+
+
+  // Update the data arrays to use the combined data
+  const labels = combinedDataArray.map((entry) => {
+    const date = moment(entry.timestamp);
+    return date.format("MMM D, YYYY"); // Change the format to suit your needs
+  });
+  const followersData = combinedDataArray.map((entry) => entry.followers);
+  const popularityData = combinedDataArray.map((entry) => entry.popularity);
+  const listenersData = combinedDataArray.map((entry) => entry.listeners);
+
+  createLineChart("followersChart", labels, followersData, "Followers");
+  createLineChart(
+    "popularityChart",
+    labels,
+    popularityData,
+    "Popularity"
+  );
+  createLineChart("listenersChart", labels, listenersData, "Listeners");
+}
+
+
+      function createLineChart(chartId, labels, data, label) {
+        const ctx = document.getElementById(chartId);
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: label,
+                data: data,
+                borderColor: "rgba(75, 192, 192, 1)",
+                backgroundColor: "rgba(75, 192, 192, 0.2)",
+                borderWidth: 1,
+                pointBackgroundColor: "#FFFFFF",
+                pointBorderColor: "rgba(75, 192, 192, 1)",
+                pointHoverBackgroundColor: "rgba(75, 192, 192, 1)",
+                pointHoverBorderColor: "#FFFFFF",
+              },
+            ],
+          },
+          options: {
+            animation: {
+              duration: 2000,
+              easing: "easeInOutCubic",
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  color: "#FFFFFF",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+              x: {
+                ticks: {
+                  color: "#FFFFFF",
+                },
+                grid: {
+                  color: "rgba(255, 255, 255, 0.1)",
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                labels: {
+                  color: "#FFFFFF",
+                  font: {
+                    family: "Arial, sans-serif",
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+      fetchData();
+    </script>
+  </body>
+</html>
