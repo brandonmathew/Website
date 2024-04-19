@@ -22,7 +22,7 @@ To get started with this application, follow these steps:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/spotify-artist-stats.git
+   git clone https://github.com/brandonmathew/spotify-artist-stats.git
    ```
 
 2. Change to the project directory:
